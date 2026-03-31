@@ -153,3 +153,160 @@ CCC分解：
 - Kang Y, et al. Development of a flexible integrated self-calibrating MEMS pressure sensor using a liquid-to-vapor phase change. Sensors. 2022;22(24):9737. doi:10.3390/s22249737
 - Millar Inc. Mikro-Cath Pressure Catheter. https://millar.com/Clinical/MikroCath/
 - Finapres Medical Systems. Physiocal Technology. https://www.finapres.com/technologies/physiocal
+
+---
+
+# English Translation
+
+---
+
+# Zero calibration unnecessary theory: Materials for consideration using the CCC framework
+
+## Verification of idea: “If designed properly, zero calibration should not be necessary” → Correct
+
+---
+
+## 1. Why is zero calibration currently necessary? (Current system design constraints)
+
+The current invasive arterial pressure measurement system has the following configuration:
+
+````
+Catheter tip (intravascular) → Fluid-filled tube → External transducer → Monitor
+````
+
+This configuration results in three systematic offsets:
+
+| Offset source | Physical cause | Magnitude |
+|---|---|---|
+| **Hydrostatic pressure column** | Height difference between transducer and measurement point ΔP = ρgh | ~0.74 mmHg/cm height difference |
+| **Atmospheric pressure fluctuation** | Gauge pressure measurement (atmospheric pressure reference) | Based on ~760 mmHg |
+| **Transducer drift** | Strain gauge change over time | Several mmHg/day |
+
+**Zero calibration operation**: Open the three-way stopcock → expose the transducer to the atmosphere → reset to 0 mmHg
+
+In other words, zero calibration is nothing but an offset (intercept) removal operation.
+
+---
+
+## 2. Reasons why it can be made unnecessary from an engineering standpoint
+
+### A. Catheter tip sensor (Millar Mikro-Cath, etc.)
+
+- MEMS piezoresistive element mounted directly on the catheter tip
+- **No liquid-filled column** → Hydrostatic pressure offset = 0
+- Unaffected by changes in patient position (Millar: "No need to calibrate to patient height")
+- However, atmospheric pressure zero calibration is still required before insertion (problem with atmospheric pressure standards)
+
+### B. Absolute pressure sensor + barometric compensation
+
+- Measures absolute pressure and electronically subtracts atmospheric pressure with the monitor's built-in barometric pressure sensor
+- Manual zero calibration becomes **in principle unnecessary**
+- Automatically compensates for atmospheric pressure fluctuations (weather, positive pressure ventilation environment in the operating room)
+
+### C. Self-Calibrating MEMS
+
+- Built-in reference pressure cavity on chip (Kang et al., Sensors 2022)
+- Periodic automatic calibration at known pressure points using liquid-gas phase transition
+- Eliminate long-term drift in principle
+
+### Summary: Necessary design elements
+
+| Current Problem | Design to Solve | Results |
+|---|---|---|
+| Hydrostatic column | Tip sensor | ΔP = 0 |
+| Atmospheric pressure reference | Absolute pressure + pressure compensation | Automatic zero |
+| Drift | Self-calibrating MEMS | Long-term stability |
+
+**If all three are implemented, manual zero calibration is not necessary in principle. **
+
+---
+
+## 3. Connection with CCC framework (this is important for the paper)
+### What part of the CCC is operated during zero calibration?
+
+Lin's CCC decomposition: **ρ_c = r × C_b**
+
+Here C_b (bias correction factor) can be further decomposed:
+
+````
+C_b = 2 / (v + 1/v + u²)
+
+v = σ₁/σ₂ (scale shift: scale ratio)
+u = (μ₁ - μ₂) / √(σ₁σ₂) (location shift)
+````
+
+**Zero calibration only corrects u** (location shift = offset removal).
+
+That is:
+- After zero calibration: u → 0 (average difference disappears)
+- But: if v ≠ 1 **C_b < 1 remains**
+- i.e.: **Gain error (scale mismatch) is not corrected by zero calibration**
+
+### Specific example
+
+Suppose the following is observed on the device after zero calibration:
+
+````
+Bland-Altman: bias ≈ 0 mmHg (zero calibration successful)
+But: The true relationship is P_device = 1.08 × P_true (8% gain error)
+````
+
+- BA plot: looks like bias ≈ 0 (match on average)
+- However, it is underestimated in the low pressure region and overestimated in the high pressure region (proportional bias)
+- **PE can still be >30% in the presence of gain error**
+
+CCC decomposition:
+- r = 0.98 (high accuracy: data closely lies on the regression line)
+- C_b = 0.95 (< 1 due to gain error)
+- **CCC = 0.93** (apparent "good match" but hides scale mismatch)
+
+→ Zero calibration erases u but does not set v to 1. The nature of this residual error is visualized for the first time by C_b decomposition of CCC.
+
+---
+
+## 4. Argument logic (proposal) to be inserted into the discussion
+
+### Logic flow
+
+1. **Current status**: Zero calibration is clinically essential for invasive arterial pressure monitoring. Similarly, non-invasive CO monitors have implemented various automatic calibration mechanisms (e.g., ClearSight's Physiocal™, NICOM's bioreactance phase standard, etc.).
+
+2. **Engineering considerations**: However, these calibration operations are essentially **offset corrections (removal of location shifts)** and do not correct for **scale mismatches**. If the catheter tip MEMS sensor + absolute pressure measurement + self-calibration mechanism is appropriately designed, manual zero calibration itself should be unnecessary.
+3. **CCC interpretation**: Since CCC's C_b decomposition can distinguish between location shift (u) and scale shift (v), it is possible to quantitatively detect "scale errors that remain even after zero calibration." In conventional BA plots, a "good match" is often judged when bias ≈ 0 after zero calibration, but proportional bias (CO value-dependent error) can still be hidden within the LoA.
+
+4. **Implication**:
+   - For equipment developers: CCC C_b decomposition serves as a **design guideline** that distinguishes between "errors that can be resolved by offset correction" and "errors that require gain adjustment"
+   - For regulators: It is not enough to show bias ≈ 0 in post-zero validation; scale agreement should be assessed separately by reporting C_b.
+   - For clinicians: The impact of zero calibration frequency and timing on measurement accuracy depends only on r (precision), and C_b (accuracy) is not improved by calibration operations → **understanding that measures to improve precision and accuracy are essentially different**
+5. **Concluding argument**: C_b → 1.0 should be **achieved at the design stage** for a properly designed sensor, and CCC decomposition is the only integrated metric to quantify that achievement. Designs that rely on zero calibration only partially compensate for the lack of C_b by removing u.
+
+---
+
+## 5. Expansion to non-invasive CO monitoring
+
+| Device | Calibration mechanism | Correction target | What is not corrected |
+|---|---|---|---|
+| **Invasive Arterial Pressure** | Manual Zero Calibration | Hydrostatic Pressure Offset (u) | Gain Error (v) |
+| **ClearSight** | Physiocal™ | Volume clamp setpoint (u) | Pressure → CO conversion gain (v) |
+| **NICOM/Starling** | Bioreactance phase reference | Phase offset (u) | Gain of phase → SV conversion (v) |
+| **FloTrac** | Arterial pressure waveform calibration | Mean pressure offset (u) | Pulse contour → CO gain (v) |
+
+Structure common to all devices:
+- **Auto/manual calibration → removal of u** (BA plot bias → 0)
+- **Gain error → v ≠ remains 1** (Hard to detect with BA plot, detectable with C_b of CCC)
+
+---
+## 6. Proposed insertion into the paper (proposed English paragraph)
+
+> **On the relationship between zero calibration and the CCC framework**
+>
+> An important implication of the CCC decomposition relates to the widespread practice of zero calibration in hemodynamic monitoring. In conventional fluid-filled arterial pressure systems, zeroing the transducer to atmospheric pressure at the phlebostatic axis is required to eliminate the hydrostatic column offset. Analogously, non-invasive CO monitors employ auto-calibration routines---such as ClearSight's Physiocal algorithm---to periodically correct measurement offsets. In CCC terms, these calibration procedures address only the location shift component (*u*) of the bias correction factor *C_b*, driving the mean difference toward zero. However, they do not correct the scale shift (*v*): a systematic proportional error (gain != 1) persists even after successful zero calibration. This residual scale error is difficult to detect on a Bland-Altman plot when the overall bias appears negligible, yet it manifests as a *C_b* < 1.0 in the CCC decomposition.
+>
+> From an engineering perspective, catheter-tip MEMS pressure sensors (e.g., Millar Mikro-Cath) eliminate the hydrostatic column entirely, and absolute pressure sensors with barometric compensation could remove the need for manual atmospheric zeroing. A well-designed measurement system should achieve *C_b* approaching 1.0 without manual calibration---that is, both location shift and scale shift should be minimised by design rather than compensated by periodic calibration. The CCC and its *C_b* component thus serve not only as validation metrics but as engineering design targets: a device requiring frequent recalibration to maintain acceptable *C_b* has a fundamental design limitation that calibration can only partially mask.
+---
+
+## 7. References (additional)
+
+- Gupta D, Jain A, Ismaeil M. Zero arterial catheters with every change in the height difference of pressure transducer and catheter insertion site. Ann Card Anaesth. 2025;28(2):205. doi:10.4103/aca.aca_198_24
+- Kang Y, et al. Development of a flexible integrated self-calibrating MEMS pressure sensor using a liquid-to-vapor phase change. Sensors. 2022;22(24):9737. doi:10.3390/s22249737
+- Millar Inc. Mikro-Cath Pressure Catheter. https://millar.com/Clinical/MikroCath/
+- Finapres Medical Systems. Physiocal Technology. https://www.finapres.com/technologies/physiocal
